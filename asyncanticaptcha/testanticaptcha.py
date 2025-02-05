@@ -18,9 +18,16 @@ async def testImageToTextTask(anticaptcha: AsyncAntiCaptcha):
     with open(test_file_path, 'rb') as img:
         img_str = img.read()
         img_str = b64encode(img_str).decode('ascii')
-
-    task_id = await anticaptcha.createImageToTextTask(img_str)
-    return await anticaptcha.waitForTask(task_id, log_processing=True)
+    task = await anticaptcha.createImageToTextTask(img_str)
+    task_status = task["status"] if "status" in task else ""
+    if task_status:
+        print(f"task status: {task_status}")
+    if task_status == "ready":
+        solution = anticaptcha.extractTaskSolution(task)
+    else:
+        task_id = task["taskId"]
+        solution = await anticaptcha.waitForTask(task_id, log_processing=True)
+    return solution["text"]
 
 async def testAsyncAntiCaptcha(apiKey: str):
     logger = logging.Logger('testanticaptcha')

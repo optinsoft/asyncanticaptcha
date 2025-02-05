@@ -20,10 +20,11 @@ class AsyncAntiCaptchaNoSolutionException(AsyncAntiCaptchaException):
     pass
 
 class AsyncAntiCaptcha:
-    def __init__(self, client_key: str, soft_id: int = 0, api_url: str = 'https://api.anti-captcha.com/', 
+    def __init__(self, client_key: str, soft_id: int = 0, callback_url: str = None, api_url: str = 'https://api.anti-captcha.com/', 
                  logger: logging.Logger = None, http_timeout: int = 15, task_timeout: int = 120, get_result_delay: int = 5):
         self.client_key = client_key
         self.soft_id = soft_id
+        self.callback_url = callback_url
         self.api_url = api_url
         self.logger = logger
         self.http_timeout = http_timeout        
@@ -83,8 +84,9 @@ class AsyncAntiCaptcha:
             "task": task_data,
             "softId": self.soft_id
         }
-        task = await self.doRequest(method, query)
-        return task["taskId"]
+        if self.callback_url:
+            query["callbackUrl"] = self.callback_url
+        return await self.doRequest(method, query)
     
     async def getTaskResult(self, task_id):
         method = "getTaskResult"
@@ -93,6 +95,11 @@ class AsyncAntiCaptcha:
             "taskId": task_id
         }
         return await self.doRequest(method, query)
+    
+    def extractTaskSolution(self, task_result):
+        if not "solution" in task_result:
+            raise AsyncAntiCaptchaNoSolutionException(f"no solution: {json.dumps(task_result)}")
+        return task_result["solution"]
     
     async def waitForTask(self, task_id, timeout: int = 0, get_result_delay: int = 0, log_processing: bool = False):
         if timeout == 0:
@@ -103,11 +110,11 @@ class AsyncAntiCaptcha:
             get_result_delay = 5
         t0 = datetime.now()
         noresult = True
-        task_check = {}
+        task_result = {}
         while noresult:
             await asyncio.sleep(get_result_delay)
-            task_check = await self.getTaskResult(task_id)
-            task_status = task_check["status"] if "status" in task_check else ""
+            task_result = await self.getTaskResult(task_id)
+            task_status = task_result["status"] if "status" in task_result else ""
             if task_status == "ready":
                 noresult = False
             elif task_status == "processing":                
@@ -121,10 +128,7 @@ class AsyncAntiCaptcha:
                 now = datetime.now()
                 if (now-t0).total_seconds() >= timeout:
                     raise AsyncAntiCaptchaTimeoutException("resolve captcha timed out")
-        if not "solution" in task_check:
-            raise AsyncAntiCaptchaNoSolutionException(f"no solution: {json.dumps(task_check)}")
-        solution = task_check["solution"]
-        return solution["text"]
+        return self.extractTaskSolution(task_result)
 
     async def createImageToTextTask(self, img_str: str):
         task_data = {
