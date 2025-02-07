@@ -29,7 +29,7 @@ async def testImageToTextTask(anticaptcha: AsyncAntiCaptcha):
         solution = await anticaptcha.waitForTask(task_id, log_processing=True)
     return solution["text"]
 
-async def testAsyncAntiCaptcha(apiKey: str):
+async def testAsyncAntiCaptcha(apiKey: str, apiUrl: str = 'https://api.anti-captcha.com/'):
     logger = logging.Logger('testanticaptcha')
 
     logger.setLevel(logging.DEBUG)
@@ -42,7 +42,7 @@ async def testAsyncAntiCaptcha(apiKey: str):
     fileHandler.setFormatter(logFormatter)
     logger.addHandler(fileHandler)
 
-    anticaptcha = AsyncAntiCaptcha(apiKey, logger=logger)
+    anticaptcha = AsyncAntiCaptcha(apiKey, api_url=apiUrl, logger=logger)
 
     print('--- asyncanticaptcha test ---')
 

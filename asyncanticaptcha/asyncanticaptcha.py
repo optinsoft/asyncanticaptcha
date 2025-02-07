@@ -55,10 +55,11 @@ class AsyncAntiCaptcha:
 
     async def doRequest(self, method: str, query: dict):
         url = self.api_url + method
+        headers = {'Content-Type': 'application/json; charset=utf-8'}
         ssl_context = ssl.create_default_context(cafile=certifi.where())
         conn = aiohttp.TCPConnector(ssl=ssl_context)
         async with aiohttp.ClientSession(connector=conn, raise_for_status=False, timeout=aiohttp.ClientTimeout(total=self.http_timeout)) as session:
-            async with session.post(url, data=json.dumps(query), timeout=self.http_timeout) as resp:
+            async with session.post(url, data=json.dumps(query), headers=headers, timeout=self.http_timeout) as resp:
                 if resp.status != 200:
                     respText = await resp.text()
                     self.logRequest(method, query, {'status':resp.status,'text':respText})
